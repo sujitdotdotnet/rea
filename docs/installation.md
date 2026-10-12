@@ -1001,6 +1001,49 @@ symbolic link is retained and reported rather than followed. Uninstall checks
 REA's managed shared and Claude Code personal skill locations. See the
 [CLI guide](cli.md#output-and-exit-status) for exit statuses.
 
+## Agent plugins and marketplaces
+
+The repository root is both a Claude Code plugin
+(`.claude-plugin/plugin.json`) and a Codex plugin
+(`.codex-plugin/plugin.json`). Each manifest bundles the
+`reverse-engineer-anything` skill from `.agents/skills/` and registers the
+stdio server through `npx`, pinned to the exact package version in that
+manifest, without a second distribution artifact.
+
+The repository is also its own single-plugin marketplace, through
+`.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`.
+
+In Claude Code:
+
+```text
+/plugin marketplace add morluto/rea
+/plugin install rea@rea
+```
+
+In Codex, add the marketplace and then install REA from the plugin list:
+
+```bash
+codex plugin marketplace add morluto/rea
+```
+
+Each release updates both manifest versions and their pinned server version
+together, which is when installed copies refresh the bundled skill and move to
+the new server. A plugin does not run `rea setup`, so provider
+configuration still follows the sections above. Use the plugin or a
+`rea setup` registration for a client, not both, to avoid two `rea` servers.
+
+`rea doctor` does not see plugin-owned state. Its client and skill checks read
+only the registrations and skill locations that `rea setup` manages, so for a
+plugin-only install `rea doctor --client <id>` and `rea doctor --skill` report
+`missing` and recommend `rea setup`. Do not follow that remediation. Check the
+plugin with the client instead (`claude plugin list` and `/mcp` in Claude
+Code, `codex plugin list` in Codex). A plugin does not put `rea` on your
+`PATH`, so check analysis engines through the package runner:
+
+```bash
+npx -y rea-agents@latest doctor --provider ghidra --json
+```
+
 ## MCP Registry
 
 REA is published in the official MCP Registry as `io.github.morluto/rea`. Registry
