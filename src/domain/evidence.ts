@@ -59,6 +59,7 @@ const subjectSchema = z.object({
     "hsp",
     "app-pack",
     "asar",
+    "ines",
     "dmg",
     "pkg",
     "plist",

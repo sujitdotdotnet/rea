@@ -19,6 +19,10 @@ import {
   type ZipPackageFormat,
 } from "../../domain/zipPackageFormat.js";
 import { mzWindowsHeaderOffset, parseDosMzHeader } from "../../domain/dosMz.js";
+import {
+  nesContainerFormat,
+  parseInesLayout,
+} from "../../domain/inesContainer.js";
 
 /** Mutable internal occurrence used until root-bound IDs are known. */
 export interface MutableOccurrence {
@@ -219,7 +223,7 @@ export const rootOccurrenceFor = (
   artifact_kind:
     metadata.format === "directory" ||
     isZipPackageFormat(metadata.format) ||
-    ["asar", "dmg", "pkg"].includes(metadata.format)
+    ["asar", "ines", "dmg", "pkg"].includes(metadata.format)
       ? "container"
       : artifactRoleForFormat(metadata.path, metadata.format).kind,
   artifact_format: metadata.format,
@@ -419,6 +423,7 @@ const artifactRoleForFormat = (
       format: zipPackageFormatForPath(path) ?? format,
     };
   if (format === "plist") return { kind: "plist", format };
+  if (format === "ines") return { kind: "container", format };
   return {
     kind: ["native-addon", "dynamic-library"].includes(byPath.kind)
       ? byPath.kind
@@ -432,6 +437,13 @@ export const classifyArtifactBytes = (
   prefix: Buffer,
   fileSize = prefix.length,
 ): ArtifactNode["format"] => {
+  // A header-only region has the signature but not the declared cartridge
+  // extent. Keep it as a file instead of inventing another container.
+  if (
+    nesContainerFormat(prefix) === "ines" &&
+    parseInesLayout(prefix, fileSize).ok
+  )
+    return "ines";
   if (hasZipSignature(prefix)) return "zip";
   if (prefix.subarray(0, 8).equals(Buffer.from("bplist00"))) return "plist";
   if (prefix.length >= 4) {

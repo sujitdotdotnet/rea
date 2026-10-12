@@ -1,4 +1,6 @@
 import { AsarArtifactReader } from "../AsarArtifactReader.js";
+import { InesArtifactReader, INES_LIMITATION } from "../InesArtifactReader.js";
+import { ArtifactReaderFailure } from "../ArtifactReader.js";
 import type { ArtifactReader } from "../ArtifactReader.js";
 import { DirectoryArtifactReader } from "../DirectoryArtifactReader.js";
 import { MachOSliceArtifactReader } from "../MachOSliceArtifactReader.js";
@@ -20,6 +22,13 @@ export const createReader = (
   if (isZipPackageFormat(format))
     return new ZipArtifactReader(path, format, undefined, rootSource);
   switch (format) {
+    case "ines":
+      if (rootSource === undefined)
+        throw new ArtifactReaderFailure(
+          "integrity",
+          "iNES inventory requires its admitted source descriptor",
+        );
+      return new InesArtifactReader(path, rootSource);
     case "directory":
       return new DirectoryArtifactReader(path);
     case "asar":
@@ -40,6 +49,7 @@ export const inventoryLimitations = (
   format: ArtifactOccurrence["artifact_format"],
   reader: ArtifactReader | undefined,
 ): string[] => {
+  if (format === "ines") return [INES_LIMITATION];
   if (reader !== undefined)
     return isZipPackageFormat(reader.format)
       ? [ZIP_NON_ENTRY_TAIL_LIMITATION]

@@ -2,6 +2,7 @@ import type { ArtifactInventorySnapshot } from "../../domain/artifactInventorySn
 import { compareUnicodeCodePoints } from "../../domain/unicodeCodePointOrder.js";
 
 import { AsarArtifactReader } from "../AsarArtifactReader.js";
+import { InesArtifactReader } from "../InesArtifactReader.js";
 
 import { lstat } from "node:fs/promises";
 import type { Stats } from "node:fs";
@@ -270,6 +271,9 @@ const buildInventorySnapshot = async (
   });
   return {
     manifest,
+    ...(reader instanceof InesArtifactReader && rootDigest !== null
+      ? { ines: await reader.verifyReconstruction(rootDigest.sha256, signal) }
+      : {}),
     nodes: orderedNodes,
     occurrences: orderedOccurrences,
     edges: orderedEdges,

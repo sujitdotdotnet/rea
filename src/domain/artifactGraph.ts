@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prefixedDigestSchema } from "./../domain/digests.js";
+import { inesInventorySchema } from "./inesContainer.js";
 
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/u);
 const artifactIdSchema = prefixedDigestSchema("art");
@@ -42,6 +43,7 @@ const artifactFormatSchema = z.enum([
   "zip",
   "pkg",
   "asar",
+  "ines",
   "javascript-bundle",
   "source-map",
   "mach-o-universal",
@@ -69,6 +71,7 @@ const artifactFormatSchema = z.enum([
 
 /** Formats established from bytes or a virtual directory tree, independent of path roles. */
 const artifactContentFormatSchema = artifactFormatSchema.extract([
+  "ines",
   "zip",
   "mach-o-universal",
   "mach-o",
@@ -196,6 +199,7 @@ export const artifactInventoryResultSchema = z.object({
   edges: z.array(artifactEdgeSchema),
   provenance: z.array(artifactCommandSchema),
   integrity_contradictions: z.array(integrityContradictionSchema).default([]),
+  ines: inesInventorySchema.optional(),
   limitations: z.array(z.string()),
 });
 

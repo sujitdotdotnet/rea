@@ -3,6 +3,8 @@ import { lstat, realpath } from "node:fs/promises";
 import { compareUnicodeCodePoints } from "../../domain/unicodeCodePointOrder.js";
 import { digestCanonicalValue } from "../../domain/canonicalDigest.js";
 import { AsarArtifactReader } from "../AsarArtifactReader.js";
+import { InesArtifactReader } from "../InesArtifactReader.js";
+import { openRootArtifact } from "../inventory/hashStableRootArtifact.js";
 import {
   ArtifactPathRegistry,
   normalizeArtifactPath,
@@ -421,6 +423,7 @@ const requireExtractableFormat = async (
   if (
     !directory &&
     format !== "asar" &&
+    format !== "ines" &&
     !isMachOFormat(format) &&
     !isZipFormat(format)
   )
@@ -436,13 +439,38 @@ const createReader = async (
   path: string,
   input: Pick<
     ArtifactExtractionInput,
-    "inputPath" | "inputFormat" | "environment"
+    "inputPath" | "inputFormat" | "environment" | "resourceScope"
   >,
 ): Promise<ArtifactReader> => {
   const format = input.inputFormat;
   if (await requireExtractableFormat(path, input))
     return new DirectoryArtifactReader(path);
   if (format === "asar") return new AsarArtifactReader(path);
+  if (format === "ines") {
+    const owner = await openRootArtifact(path, input.resourceScope);
+    try {
+      return new InesArtifactReader(
+        path,
+        {
+          handle: owner.handle,
+          initial: await owner.handle.stat(),
+        },
+        owner,
+      );
+    } catch (cause: unknown) {
+      const attempt = await input.resourceScope.release({
+        kind: "file-handle",
+        handle: owner,
+        resource: `iNES source ${path}`,
+      });
+      if (attempt.kind === "failed")
+        throw ArtifactReaderFailure.withCleanup(
+          cause,
+          ArtifactReaderFailure.cleanupObservation(attempt.cause, path),
+        );
+      throw cause;
+    }
+  }
   if (isZipFormat(format)) return new ZipArtifactReader(path, format);
   return new MachOSliceArtifactReader(path, input.environment);
 };

@@ -65,6 +65,7 @@ export const targetFormatSchema = z.enum([
   "msix",
   "appx",
   "asar",
+  "ines",
   "dmg",
   "pkg",
   "plist",

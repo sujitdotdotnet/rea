@@ -92,7 +92,7 @@ export const sameArtifactEntry = (
 
 /** Read-only adapter over one directory, archive, or virtual container. */
 export interface ArtifactReader {
-  readonly format: "directory" | ZipPackageFormat | "asar" | "file";
+  readonly format: "directory" | ZipPackageFormat | "asar" | "ines" | "file";
   entries(signal?: AbortSignal): AsyncIterable<ArtifactEntry>;
   open(entry: ArtifactEntry, signal?: AbortSignal): Promise<Readable>;
   provenance(): readonly ArtifactCommand[];

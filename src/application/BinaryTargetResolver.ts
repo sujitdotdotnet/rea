@@ -1,6 +1,10 @@
 import { constants, type Stats } from "node:fs";
 import { createHash } from "node:crypto";
 import {
+  nesContainerFormat,
+  parseInesLayout,
+} from "../domain/inesContainer.js";
+import {
   access,
   lstat,
   realpath,
@@ -276,19 +280,30 @@ const detectArtifactFormat = async (
 > => {
   throwIfTargetResolutionCancelled(signal);
   const lower = path.toLowerCase();
-  const magic = Buffer.alloc(8);
+  const magic = Buffer.alloc(16);
   const observed = await handle.read(magic, 0, magic.length, 0);
   throwIfTargetResolutionCancelled(signal);
   if (
-    observed.bytesRead === 8 &&
-    magic.equals(Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]))
+    observed.bytesRead >= 8 &&
+    magic.subarray(0, 8).equals(Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]))
   )
     throw new BinaryTargetError(
       path,
       "WebAssembly v1 artifacts are not supported by the native opening route",
       { constraint: "wasm_requires_static_inspection" },
     );
-  if (hasZipSignature(magic.subarray(0, observed.bytesRead))) {
+  const prefix = magic.subarray(0, observed.bytesRead);
+  const nesFormat = nesContainerFormat(prefix);
+  if (nesFormat !== undefined) {
+    const parsed = parseInesLayout(prefix, (await handle.stat()).size);
+    throwIfTargetResolutionCancelled(signal);
+    if (!parsed.ok)
+      throw new BinaryTargetError(path, parsed.error, {
+        constraint: "file_format_rejected",
+      });
+    return "ines";
+  }
+  if (hasZipSignature(prefix)) {
     // The HarmonyOS App Pack suffix `.app` is a root-input concept; a nested
     // ZIP member ending in `.app` keeps the generic zip classification.
     if (lower.endsWith(".app")) return "app-pack";
@@ -339,7 +354,7 @@ const isArchiveFormat = (
     | "raw-binary"
   >,
 ): format is Extract<BinaryTarget, { kind: "archive" }>["format"] =>
-  isZipPackageFormat(format) || ["asar", "dmg", "pkg"].includes(format);
+  isZipPackageFormat(format) || ["asar", "ines", "dmg", "pkg"].includes(format);
 
 const sha256Handle = async (
   handle: FileHandle,

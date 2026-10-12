@@ -32,7 +32,7 @@ import {
 } from "../domain/analysisErrorCore.js";
 import { ArtifactOperationError } from "../domain/artifactOperationError.js";
 import type { AnalysisError } from "../domain/analysisErrorBase.js";
-import type { JsonValue } from "../domain/jsonValue.js";
+import { jsonValueSchema, type JsonValue } from "../domain/jsonValue.js";
 import { interfaceBuilderLimitsSchema } from "../domain/apple/interfaceBuilderGraph.js";
 import { err, ok, type Result } from "../domain/result.js";
 import { ArtifactReaderFailure } from "./ArtifactReader.js";
@@ -349,7 +349,7 @@ class ArtifactClient implements AnalysisClient {
     const inventoryEvidence = createEvidence(subject, ARTIFACT_GRAPH_PROVIDER, {
       operation: "inventory_artifact",
       parameters: inventoryParameters,
-      result: inventory,
+      result: jsonValueSchema.parse(inventory),
       rawResult: null,
       limitations: inventory.limitations,
       // The nested inventory already names every occurrence's logical path.
